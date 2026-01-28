@@ -29,13 +29,13 @@ public class DetectCommand implements Runnable {
         DetectionResult result = detector.detect(targetPath);
 
         System.out.println("Project root: " + result.root());
-        System.out.println("Detected types:");
+        System.out.println("Detected project types:");
         
         if (result.types().isEmpty()) {
             System.out.println("  None");
         } else {
             for (ProjectType type : result.types()) {
-                System.out.println("  " + type);
+                System.out.println("  - " + type.displayName());
             }
         }
     }

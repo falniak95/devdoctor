@@ -7,5 +7,6 @@ public enum CheckStatus {
     PASS,
     WARN,
     FAIL,
-    INFO
+    INFO,
+    NOT_APPLICABLE
 }

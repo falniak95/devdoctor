@@ -54,6 +54,17 @@ public class DockerCheck implements Check {
             List.of(),
             Risk.SAFE
         ));
+        
+        // Add Windows-specific suggestion if on Windows
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        if (osName.contains("windows")) {
+            suggestions.add(new Suggestion(
+                null,
+                List.of("winget install -e --id Docker.DockerDesktop"),
+                Risk.SAFE
+            ));
+        }
+        
         return new CheckResult(
             id(),
             CheckStatus.FAIL,

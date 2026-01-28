@@ -23,7 +23,7 @@ public class JavaProjectInfoCheck implements Check {
             // Not applicable - return a result indicating it was skipped
             return new CheckResult(
                 id(),
-                CheckStatus.INFO,
+                CheckStatus.NOT_APPLICABLE,
                 "Not applicable (no Java project detected)",
                 null,
                 List.of()
