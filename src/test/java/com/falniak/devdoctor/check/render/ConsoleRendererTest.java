@@ -61,7 +61,7 @@ class ConsoleRendererTest {
         assertTrue(output.contains("Java is available"));
         assertFalse(output.contains("project.java"));
         assertFalse(output.contains("project.node"));
-        assertTrue(output.contains("NA=2")); // Summary should still count them
+        assertFalse(output.contains("NA=")); // NA is no longer shown in summary
     }
 
     @Test
@@ -158,7 +158,7 @@ class ConsoleRendererTest {
         assertTrue(output.contains("WARN=1"));
         assertTrue(output.contains("FAIL=1"));
         assertTrue(output.contains("INFO=1"));
-        assertTrue(output.contains("NA=1"));
+        assertFalse(output.contains("NA=")); // NA is no longer shown in summary
     }
 
     @Test
