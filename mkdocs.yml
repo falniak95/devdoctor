@@ -46,6 +46,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Installation: install.md
   - Commands: commands.md
   - Configuration: config.md
   - Checks: checks.md
