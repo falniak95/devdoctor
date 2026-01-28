@@ -14,6 +14,10 @@ import com.falniak.devdoctor.check.JavaProjectInfoCheck;
 import com.falniak.devdoctor.check.NodeCheck;
 import com.falniak.devdoctor.check.NodeProjectInfoCheck;
 import com.falniak.devdoctor.check.ProcessExecutor;
+import com.falniak.devdoctor.check.requirements.GoRequirementCheck;
+import com.falniak.devdoctor.check.requirements.JavaRequirementCheck;
+import com.falniak.devdoctor.check.requirements.NodeRequirementCheck;
+import com.falniak.devdoctor.check.requirements.PythonRequirementCheck;
 import com.falniak.devdoctor.check.render.ConsoleRenderer;
 import com.falniak.devdoctor.check.render.JsonRenderer;
 import com.falniak.devdoctor.config.ConfigException;
@@ -214,6 +218,10 @@ public class CheckCommand implements java.util.concurrent.Callable<Integer> {
             checks.add(new JavaProjectInfoCheck());
             checks.add(new NodeProjectInfoCheck());
             checks.add(new ComposeProjectInfoCheck());
+            checks.add(new NodeRequirementCheck());
+            checks.add(new PythonRequirementCheck());
+            checks.add(new GoRequirementCheck());
+            checks.add(new JavaRequirementCheck());
         }
         
         return checks;
