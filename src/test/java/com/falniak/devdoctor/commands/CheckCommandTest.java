@@ -7,6 +7,8 @@ import com.falniak.devdoctor.check.CheckRunner;
 import com.falniak.devdoctor.check.CheckStatus;
 import com.falniak.devdoctor.check.FakeProcessExecutor;
 import com.falniak.devdoctor.check.ProcessExecutor;
+import com.falniak.devdoctor.report.CheckReport;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.falniak.devdoctor.config.ConfigException;
 import com.falniak.devdoctor.config.ConfigLoader;
 import com.falniak.devdoctor.detect.DetectionResult;
@@ -284,6 +286,165 @@ class CheckCommandTest {
         assertEquals(Set.of("test.check1", "test.check2"), config.get().requireChecks());
     }
 
+    @Test
+    void testJsonFlagProducesValidJson() throws Exception {
+        Path projectRoot = tempDir.resolve("project");
+        Files.createDirectories(projectRoot);
+        
+        CheckCommand command = new CheckCommand();
+        setPath(command, projectRoot.toString());
+        setJson(command, true);
+        
+        redirectOutput();
+        
+        try {
+            Integer exitCode = command.call();
+            String output = outContent.toString();
+            
+            // Should be valid JSON
+            ObjectMapper mapper = new ObjectMapper();
+            CheckReport report = mapper.readValue(output, CheckReport.class);
+            assertNotNull(report);
+            assertNotNull(report.tool());
+            assertNotNull(report.project());
+            assertNotNull(report.summary());
+            assertNotNull(report.checks());
+            
+            // Exit code should be valid (0 or 1 depending on checks)
+            assertTrue(exitCode == 0 || exitCode == 1);
+        } finally {
+            restoreOutput();
+        }
+    }
+
+    @Test
+    void testJsonFlagSuppressesConsoleOutput() throws Exception {
+        Path projectRoot = tempDir.resolve("project");
+        Files.createDirectories(projectRoot);
+        
+        CheckCommand command = new CheckCommand();
+        setPath(command, projectRoot.toString());
+        setJson(command, true);
+        
+        redirectOutput();
+        
+        try {
+            command.call();
+            String output = outContent.toString();
+            
+            // Should not contain console-specific output
+            assertFalse(output.contains("Project root:"), "Should not contain console output");
+            assertFalse(output.contains("System checks"), "Should not contain console output");
+            assertFalse(output.contains("Config: loaded"), "Should not contain config status line");
+            
+            // Should be JSON
+            assertTrue(output.trim().startsWith("{"), "Should start with JSON object");
+            assertTrue(output.trim().endsWith("}"), "Should end with JSON object");
+        } finally {
+            restoreOutput();
+        }
+    }
+
+    @Test
+    void testJsonPrettyProducesPrettyPrintedJson() throws Exception {
+        Path projectRoot = tempDir.resolve("project");
+        Files.createDirectories(projectRoot);
+        
+        CheckCommand command = new CheckCommand();
+        setPath(command, projectRoot.toString());
+        setJsonPretty(command, true);
+        
+        redirectOutput();
+        
+        try {
+            command.call();
+            String output = outContent.toString();
+            
+            // Pretty printed JSON should contain newlines
+            assertTrue(output.contains("\n"), "Pretty printed JSON should contain newlines");
+            
+            // Should still be valid JSON
+            ObjectMapper mapper = new ObjectMapper();
+            CheckReport report = mapper.readValue(output, CheckReport.class);
+            assertNotNull(report);
+        } finally {
+            restoreOutput();
+        }
+    }
+
+    @Test
+    void testJsonExitCodesMatchNonJsonMode() throws Exception {
+        // Test that exit codes are the same regardless of JSON mode
+        Path projectRoot = tempDir.resolve("project");
+        Files.createDirectories(projectRoot);
+        
+        // Run without JSON
+        CheckCommand command1 = new CheckCommand();
+        setPath(command1, projectRoot.toString());
+        setJson(command1, false);
+        
+        redirectOutput();
+        Integer exitCode1;
+        try {
+            exitCode1 = command1.call();
+        } finally {
+            restoreOutput();
+        }
+        
+        // Run with JSON
+        CheckCommand command2 = new CheckCommand();
+        setPath(command2, projectRoot.toString());
+        setJson(command2, true);
+        
+        redirectOutput();
+        Integer exitCode2;
+        try {
+            exitCode2 = command2.call();
+        } finally {
+            restoreOutput();
+        }
+        
+        // Exit codes should match
+        assertEquals(exitCode1, exitCode2, "Exit codes should match between JSON and non-JSON modes");
+    }
+
+    @Test
+    void testJsonIncludesAllChecksRegardlessOfShowNa() throws Exception {
+        Path projectRoot = tempDir.resolve("project");
+        Files.createDirectories(projectRoot);
+        
+        CheckCommand command = new CheckCommand();
+        setPath(command, projectRoot.toString());
+        setJson(command, true);
+        // Note: showNa is false by default
+        
+        redirectOutput();
+        
+        try {
+            command.call();
+            String output = outContent.toString();
+            
+            // Parse JSON
+            ObjectMapper mapper = new ObjectMapper();
+            CheckReport report = mapper.readValue(output, CheckReport.class);
+            
+            // Should include all checks, including NOT_APPLICABLE ones
+            // The actual number depends on the environment, but we should have checks
+            assertFalse(report.checks().isEmpty(), "Should have checks");
+            
+            // Count NOT_APPLICABLE checks
+            long naCount = report.checks().stream()
+                .filter(c -> "NOT_APPLICABLE".equals(c.status()))
+                .count();
+            
+            // Summary should reflect all checks including NA
+            assertEquals(naCount, report.summary().notApplicable(), 
+                "Summary should include NOT_APPLICABLE count");
+        } finally {
+            restoreOutput();
+        }
+    }
+
     // Helper methods to set private fields via reflection
     private void setPath(CheckCommand command, String path) throws Exception {
         java.lang.reflect.Field field = CheckCommand.class.getDeclaredField("path");
@@ -295,6 +456,18 @@ class CheckCommandTest {
         java.lang.reflect.Field field = CheckCommand.class.getDeclaredField("configPath");
         field.setAccessible(true);
         field.set(command, configPath);
+    }
+
+    private void setJson(CheckCommand command, boolean json) throws Exception {
+        java.lang.reflect.Field field = CheckCommand.class.getDeclaredField("json");
+        field.setAccessible(true);
+        field.set(command, json);
+    }
+
+    private void setJsonPretty(CheckCommand command, boolean jsonPretty) throws Exception {
+        java.lang.reflect.Field field = CheckCommand.class.getDeclaredField("jsonPretty");
+        field.setAccessible(true);
+        field.set(command, jsonPretty);
     }
 
     private CheckContext createTestContext(ProcessExecutor executor) {
