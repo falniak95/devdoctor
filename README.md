@@ -1,3 +1,9 @@
+[![CI](https://img.shields.io/github/actions/workflow/status/falniak95/devdoctor/ci.yml?branch=main)](https://github.com/falniak95/devdoctor/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/falniak95/devdoctor)](https://github.com/falniak95/devdoctor/releases)
+[![License](https://img.shields.io/github/license/falniak95/devdoctor)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-17%2B-orange)](https://adoptium.net/)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/falniak95/devdoctor)
+
 <div align="center">
   <img src="assets/mascot.png" width="180" alt="DevDoctor Mascot">
 </div>
@@ -36,6 +42,16 @@ The installer will:
 - Install it to `~/.devdoctor/` (macOS/Linux) or `%LOCALAPPDATA%\DevDoctor\` (Windows)
 - Create an executable wrapper in your PATH
 - Provide instructions if PATH configuration is needed
+
+### Install via Homebrew (macOS/Linux)
+
+Install DevDoctor using Homebrew:
+
+```bash
+brew install falniak95/devdoctor/devdoctor
+```
+
+This uses a custom Homebrew tap. Make sure you have [Homebrew](https://brew.sh/) installed before running this command.
 
 ### Manual Installation
 
