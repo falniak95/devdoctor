@@ -1,5 +1,7 @@
 package com.falniak.devdoctor.detect;
 
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -81,6 +83,41 @@ public class ProjectDetector {
             types.add(ProjectType.DOCKER_COMPOSE);
         }
 
+        // Python detection
+        if (hasMarker(root, "pyproject.toml")) {
+            types.add(ProjectType.PYTHON_PYPROJECT);
+        }
+        if (hasMarker(root, "requirements.txt")) {
+            types.add(ProjectType.PYTHON_REQUIREMENTS);
+        }
+        if (hasMarker(root, "Pipfile")) {
+            types.add(ProjectType.PYTHON_PIPENV);
+        }
+        if (hasMarker(root, "setup.py")) {
+            types.add(ProjectType.PYTHON_SETUPPY);
+        }
+
+        // Go detection
+        if (hasMarker(root, "go.mod")) {
+            types.add(ProjectType.GO_MODULES);
+        }
+
+        // Rust detection
+        if (hasMarker(root, "Cargo.toml")) {
+            types.add(ProjectType.RUST_CARGO);
+        }
+
+        // .NET detection
+        if (hasGlobMarker(root, "*.sln")) {
+            types.add(ProjectType.DOTNET_SOLUTION);
+        }
+        if (hasGlobMarker(root, "*.csproj")) {
+            types.add(ProjectType.DOTNET_CSHARP_PROJECT);
+        }
+        if (hasGlobMarker(root, "*.fsproj")) {
+            types.add(ProjectType.DOTNET_FSHARP_PROJECT);
+        }
+
         return types;
     }
 
@@ -97,7 +134,16 @@ public class ProjectDetector {
             || hasMarker(dir, "package.json")
             || hasMarker(dir, "docker-compose.yml")
             || hasMarker(dir, "compose.yml")
-            || hasMarker(dir, "compose.yaml");
+            || hasMarker(dir, "compose.yaml")
+            || hasMarker(dir, "pyproject.toml")
+            || hasMarker(dir, "requirements.txt")
+            || hasMarker(dir, "Pipfile")
+            || hasMarker(dir, "setup.py")
+            || hasMarker(dir, "go.mod")
+            || hasMarker(dir, "Cargo.toml")
+            || hasGlobMarker(dir, "*.sln")
+            || hasGlobMarker(dir, "*.csproj")
+            || hasGlobMarker(dir, "*.fsproj");
     }
 
     /**
@@ -110,6 +156,50 @@ public class ProjectDetector {
     private boolean hasMarker(Path dir, String marker) {
         Path markerPath = dir.resolve(marker);
         return Files.exists(markerPath) && Files.isRegularFile(markerPath);
+    }
+
+    /**
+     * Checks if any files matching the given glob pattern exist in the directory.
+     * Used for .NET markers that can have various filenames (e.g., *.sln, *.csproj).
+     *
+     * @param dir The directory to check
+     * @param pattern The glob pattern (e.g., "*.sln")
+     * @return true if any regular file matches the pattern
+     */
+    private boolean hasGlobMarker(Path dir, String pattern) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, pattern)) {
+            for (Path entry : stream) {
+                if (Files.isRegularFile(entry)) {
+                    return true;
+                }
+            }
+        } catch (IOException e) {
+            // If directory doesn't exist or can't be read, return false
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * Collects all filenames matching the given glob pattern in the directory.
+     * Used for .NET markers that can have various filenames.
+     *
+     * @param dir The directory to check
+     * @param pattern The glob pattern (e.g., "*.sln")
+     * @return List of matching filenames
+     */
+    private List<String> collectGlobMarkers(Path dir, String pattern) {
+        List<String> markers = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, pattern)) {
+            for (Path entry : stream) {
+                if (Files.isRegularFile(entry)) {
+                    markers.add(entry.getFileName().toString());
+                }
+            }
+        } catch (IOException e) {
+            // If directory doesn't exist or can't be read, return empty list
+        }
+        return markers;
     }
 
     /**
@@ -149,6 +239,41 @@ public class ProjectDetector {
             if (hasMarker(root, "compose.yaml")) {
                 markers.add("compose.yaml");
             }
+        }
+
+        // Python markers
+        if (types.contains(ProjectType.PYTHON_PYPROJECT) && hasMarker(root, "pyproject.toml")) {
+            markers.add("pyproject.toml");
+        }
+        if (types.contains(ProjectType.PYTHON_REQUIREMENTS) && hasMarker(root, "requirements.txt")) {
+            markers.add("requirements.txt");
+        }
+        if (types.contains(ProjectType.PYTHON_PIPENV) && hasMarker(root, "Pipfile")) {
+            markers.add("Pipfile");
+        }
+        if (types.contains(ProjectType.PYTHON_SETUPPY) && hasMarker(root, "setup.py")) {
+            markers.add("setup.py");
+        }
+
+        // Go markers
+        if (types.contains(ProjectType.GO_MODULES) && hasMarker(root, "go.mod")) {
+            markers.add("go.mod");
+        }
+
+        // Rust markers
+        if (types.contains(ProjectType.RUST_CARGO) && hasMarker(root, "Cargo.toml")) {
+            markers.add("Cargo.toml");
+        }
+
+        // .NET markers
+        if (types.contains(ProjectType.DOTNET_SOLUTION)) {
+            markers.addAll(collectGlobMarkers(root, "*.sln"));
+        }
+        if (types.contains(ProjectType.DOTNET_CSHARP_PROJECT)) {
+            markers.addAll(collectGlobMarkers(root, "*.csproj"));
+        }
+        if (types.contains(ProjectType.DOTNET_FSHARP_PROJECT)) {
+            markers.addAll(collectGlobMarkers(root, "*.fsproj"));
         }
 
         return markers;
