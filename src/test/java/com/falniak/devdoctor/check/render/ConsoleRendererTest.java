@@ -61,7 +61,7 @@ class ConsoleRendererTest {
         assertTrue(output.contains("Java is available"));
         assertFalse(output.contains("project.java"));
         assertFalse(output.contains("project.node"));
-        assertFalse(output.contains("NA=")); // NA is no longer shown in summary
+        assertTrue(output.contains("NA=")); // NA is now shown in summary
     }
 
     @Test
@@ -158,7 +158,7 @@ class ConsoleRendererTest {
         assertTrue(output.contains("WARN=1"));
         assertTrue(output.contains("FAIL=1"));
         assertTrue(output.contains("INFO=1"));
-        assertFalse(output.contains("NA=")); // NA is no longer shown in summary
+        assertTrue(output.contains("NA=1")); // NA is now shown in summary
     }
 
     @Test
@@ -313,6 +313,35 @@ class ConsoleRendererTest {
         // Check format: [STATUS] id  summary
         assertTrue(output.contains("[PASS] system.java  Java is available (21.0.8)"));
         assertTrue(output.contains("[WARN] system.git  Git version is old"));
+    }
+
+    @Test
+    void testRequiredChecksFailedOnSeparateLine() {
+        DetectionResult detectionResult = createDetectionResult(EnumSet.noneOf(ProjectType.class));
+        List<CheckResult> results = List.of(
+            new CheckResult("system.java", CheckStatus.PASS, "Java is available", null, List.of()),
+            new CheckResult("system.git", CheckStatus.PASS, "Git is available", null, List.of()),
+            new CheckResult("system.docker", CheckStatus.FAIL, "Docker not found", null, List.of())
+        );
+        Set<String> failedRequiredChecks = Set.of("system.docker");
+
+        ConsoleRenderer renderer = new ConsoleRenderer(false, false);
+        renderer.render(detectionResult, results, failedRequiredChecks);
+
+        String output = getOutput();
+        // Verify summary line contains counts
+        assertTrue(output.contains("Summary: PASS=2 WARN=0 FAIL=1 INFO=0 NA=0"));
+        // Verify required checks failed message is on a separate line
+        assertTrue(output.contains("Required checks failed: system.docker"));
+        // Verify they are on separate lines (check that there's a newline between them)
+        int summaryIndex = output.indexOf("Summary:");
+        int requiredIndex = output.indexOf("Required checks failed:");
+        assertTrue(summaryIndex >= 0);
+        assertTrue(requiredIndex >= 0);
+        assertTrue(requiredIndex > summaryIndex);
+        // Check that there's a newline between summary and required checks line
+        String betweenLines = output.substring(summaryIndex, requiredIndex);
+        assertTrue(betweenLines.contains("\n"), "Required checks failed should be on a separate line");
     }
 
     private DetectionResult createDetectionResult(Set<ProjectType> types) {
