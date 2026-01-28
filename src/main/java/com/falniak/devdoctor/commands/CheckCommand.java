@@ -15,6 +15,7 @@ import com.falniak.devdoctor.check.NodeCheck;
 import com.falniak.devdoctor.check.NodeProjectInfoCheck;
 import com.falniak.devdoctor.check.ProcessExecutor;
 import com.falniak.devdoctor.check.render.ConsoleRenderer;
+import com.falniak.devdoctor.check.render.JsonRenderer;
 import com.falniak.devdoctor.config.ConfigException;
 import com.falniak.devdoctor.config.ConfigLoader;
 import com.falniak.devdoctor.config.DevDoctorConfig;
@@ -74,6 +75,18 @@ public class CheckCommand implements java.util.concurrent.Callable<Integer> {
     )
     private String configPath;
 
+    @Option(
+        names = "--json",
+        description = "Output results as JSON"
+    )
+    private boolean json;
+
+    @Option(
+        names = "--json-pretty",
+        description = "Output results as pretty-printed JSON (implies --json)"
+    )
+    private boolean jsonPretty;
+
     @Override
     public Integer call() {
         try {
@@ -107,11 +120,13 @@ public class CheckCommand implements java.util.concurrent.Callable<Integer> {
                 return 2;
             }
             
-            // Print config status
-            if (loadedConfigPath != null) {
-                System.out.println("Config: loaded from " + loadedConfigPath);
-            } else {
-                System.out.println("Config: none");
+            // Print config status (only in non-JSON mode)
+            if (!json && !jsonPretty) {
+                if (loadedConfigPath != null) {
+                    System.out.println("Config: loaded from " + loadedConfigPath);
+                } else {
+                    System.out.println("Config: none");
+                }
             }
             
             // Build context
@@ -151,8 +166,21 @@ public class CheckCommand implements java.util.concurrent.Callable<Integer> {
             }
             
             // Print output
-            ConsoleRenderer renderer = new ConsoleRenderer(showNa, verbose);
-            renderer.render(detectionResult, results, failedRequiredChecks);
+            if (json || jsonPretty) {
+                // JSON output mode
+                JsonRenderer jsonRenderer = new JsonRenderer();
+                jsonRenderer.render(
+                    detectionResult,
+                    results,
+                    config,
+                    loadedConfigPath,
+                    jsonPretty
+                );
+            } else {
+                // Console output mode
+                ConsoleRenderer renderer = new ConsoleRenderer(showNa, verbose);
+                renderer.render(detectionResult, results, failedRequiredChecks);
+            }
             
             // Calculate exit code
             boolean hasFailures = results.stream()
