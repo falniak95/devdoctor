@@ -13,10 +13,9 @@ import com.falniak.devdoctor.check.JavaProjectInfoCheck;
 import com.falniak.devdoctor.check.NodeCheck;
 import com.falniak.devdoctor.check.NodeProjectInfoCheck;
 import com.falniak.devdoctor.check.ProcessExecutor;
-import com.falniak.devdoctor.check.Suggestion;
+import com.falniak.devdoctor.check.render.ConsoleRenderer;
 import com.falniak.devdoctor.detect.DetectionResult;
 import com.falniak.devdoctor.detect.ProjectDetector;
-import com.falniak.devdoctor.detect.ProjectType;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -50,6 +49,18 @@ public class CheckCommand implements Runnable {
     )
     private boolean projectOnly;
 
+    @Option(
+        names = "--show-na",
+        description = "Show not applicable checks in output"
+    )
+    private boolean showNa;
+
+    @Option(
+        names = "--verbose",
+        description = "Show detailed output including details and suggestions"
+    )
+    private boolean verbose;
+
     @Override
     public void run() {
         Path targetPath = Paths.get(path).toAbsolutePath().normalize();
@@ -76,7 +87,8 @@ public class CheckCommand implements Runnable {
         List<CheckResult> results = runner.runChecks(checks, context);
         
         // Print output
-        printResults(detectionResult, results);
+        ConsoleRenderer renderer = new ConsoleRenderer(showNa, verbose);
+        renderer.render(detectionResult, results);
     }
     
     private List<Check> buildCheckList() {
@@ -98,42 +110,5 @@ public class CheckCommand implements Runnable {
         }
         
         return checks;
-    }
-    
-    private void printResults(DetectionResult detectionResult, List<CheckResult> results) {
-        System.out.println("Project root: " + detectionResult.root());
-        System.out.println("Detected types:");
-        
-        if (detectionResult.types().isEmpty()) {
-            System.out.println("  None");
-        } else {
-            for (ProjectType type : detectionResult.types()) {
-                System.out.println("  " + type);
-            }
-        }
-        
-        System.out.println();
-        
-        for (CheckResult result : results) {
-            String statusStr = "[" + result.status() + "]";
-            System.out.println(statusStr + " " + result.id() + " - " + result.summary());
-            
-            if (result.details() != null && !result.details().isEmpty()) {
-                System.out.println("  " + result.details());
-            }
-            
-            if (result.suggestions() != null && !result.suggestions().isEmpty()) {
-                for (Suggestion suggestion : result.suggestions()) {
-                    if (!suggestion.commands().isEmpty()) {
-                        for (String command : suggestion.commands()) {
-                            System.out.println("  > " + command);
-                        }
-                    }
-                    if (suggestion.message() != null && !suggestion.message().isEmpty()) {
-                        System.out.println("  " + suggestion.message());
-                    }
-                }
-            }
-        }
     }
 }

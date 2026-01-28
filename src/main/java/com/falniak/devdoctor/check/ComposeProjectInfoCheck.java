@@ -22,7 +22,7 @@ public class ComposeProjectInfoCheck implements Check {
             // Not applicable - return a result indicating it was skipped
             return new CheckResult(
                 id(),
-                CheckStatus.INFO,
+                CheckStatus.NOT_APPLICABLE,
                 "Not applicable (no Docker Compose project detected)",
                 null,
                 List.of()
