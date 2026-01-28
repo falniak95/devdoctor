@@ -1,0 +1,54 @@
+site_name: DevDoctor
+site_description: Project-aware CLI tool that diagnoses environment and setup issues
+site_url: https://falniak95.github.io/devdoctor
+repo_url: https://github.com/falniak95/devdoctor
+repo_name: falniak95/devdoctor
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: orange
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: orange
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Commands: commands.md
+  - Configuration: config.md
+  - Checks: checks.md
+  - CI/CD Integration: ci.md
+
+copyright: Copyright &copy; 2026 Furkan Alniak

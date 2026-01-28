@@ -10,7 +10,8 @@ import picocli.CommandLine.Command;
     name = "devdoctor",
     description = "Project-aware CLI tool that helps developers diagnose environment and setup issues",
     subcommands = {DetectCommand.class, CheckCommand.class, FixCommand.class},
-    mixinStandardHelpOptions = true
+    mixinStandardHelpOptions = true,
+    versionProvider = VersionProvider.class
 )
 public class DevDoctor implements Runnable {
 

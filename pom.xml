@@ -4,7 +4,7 @@
   <groupId>com.falniak.devdoctor</groupId>
   <artifactId>devdoctor</artifactId>
   <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0.0</version>
   <name>devdoctor</name>
   <url>http://maven.apache.org</url>
 
@@ -68,6 +68,9 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <mainClass>com.falniak.devdoctor.DevDoctor</mainClass>
+                  <manifestEntries>
+                    <Implementation-Version>${project.version}</Implementation-Version>
+                  </manifestEntries>
                 </transformer>
               </transformers>
             </configuration>
