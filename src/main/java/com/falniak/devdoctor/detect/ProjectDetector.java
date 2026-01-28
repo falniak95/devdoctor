@@ -1,5 +1,7 @@
 package com.falniak.devdoctor.detect;
 
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -81,6 +83,41 @@ public class ProjectDetector {
             types.add(ProjectType.DOCKER_COMPOSE);
         }
 
+        // Python detection
+        if (hasMarker(root, "pyproject.toml")) {
+            types.add(ProjectType.PYTHON_PYPROJECT);
+        }
+        if (hasMarker(root, "requirements.txt")) {
+            types.add(ProjectType.PYTHON_REQUIREMENTS);
+        }
+        if (hasMarker(root, "Pipfile")) {
+            types.add(ProjectType.PYTHON_PIPENV);
+        }
+        if (hasMarker(root, "setup.py")) {
+            types.add(ProjectType.PYTHON_SETUPPY);
+        }
+
+        // Go detection
+        if (hasMarker(root, "go.mod")) {
+            types.add(ProjectType.GO_MODULES);
+        }
+
+        // Rust detection
+        if (hasMarker(root, "Cargo.toml")) {
+            types.add(ProjectType.RUST_CARGO);
+        }
+
+        // .NET detection
+        if (hasDotNetSolution(root)) {
+            types.add(ProjectType.DOTNET_SOLUTION);
+        }
+        if (hasDotNetCSharpProject(root)) {
+            types.add(ProjectType.DOTNET_CSHARP_PROJECT);
+        }
+        if (hasDotNetFSharpProject(root)) {
+            types.add(ProjectType.DOTNET_FSHARP_PROJECT);
+        }
+
         return types;
     }
 
@@ -97,7 +134,16 @@ public class ProjectDetector {
             || hasMarker(dir, "package.json")
             || hasMarker(dir, "docker-compose.yml")
             || hasMarker(dir, "compose.yml")
-            || hasMarker(dir, "compose.yaml");
+            || hasMarker(dir, "compose.yaml")
+            || hasMarker(dir, "pyproject.toml")
+            || hasMarker(dir, "requirements.txt")
+            || hasMarker(dir, "Pipfile")
+            || hasMarker(dir, "setup.py")
+            || hasMarker(dir, "go.mod")
+            || hasMarker(dir, "Cargo.toml")
+            || hasDotNetSolution(dir)
+            || hasDotNetCSharpProject(dir)
+            || hasDotNetFSharpProject(dir);
     }
 
     /**
@@ -151,6 +197,143 @@ public class ProjectDetector {
             }
         }
 
+        // Python markers
+        if (types.contains(ProjectType.PYTHON_PYPROJECT) && hasMarker(root, "pyproject.toml")) {
+            markers.add("pyproject.toml");
+        }
+        if (types.contains(ProjectType.PYTHON_REQUIREMENTS) && hasMarker(root, "requirements.txt")) {
+            markers.add("requirements.txt");
+        }
+        if (types.contains(ProjectType.PYTHON_PIPENV) && hasMarker(root, "Pipfile")) {
+            markers.add("Pipfile");
+        }
+        if (types.contains(ProjectType.PYTHON_SETUPPY) && hasMarker(root, "setup.py")) {
+            markers.add("setup.py");
+        }
+
+        // Go markers
+        if (types.contains(ProjectType.GO_MODULES) && hasMarker(root, "go.mod")) {
+            markers.add("go.mod");
+        }
+
+        // Rust markers
+        if (types.contains(ProjectType.RUST_CARGO) && hasMarker(root, "Cargo.toml")) {
+            markers.add("Cargo.toml");
+        }
+
+        // .NET markers
+        if (types.contains(ProjectType.DOTNET_SOLUTION)) {
+            markers.addAll(findDotNetSolutions(root));
+        }
+        if (types.contains(ProjectType.DOTNET_CSHARP_PROJECT)) {
+            markers.addAll(findDotNetCSharpProjects(root));
+        }
+        if (types.contains(ProjectType.DOTNET_FSHARP_PROJECT)) {
+            markers.addAll(findDotNetFSharpProjects(root));
+        }
+
         return markers;
+    }
+
+    /**
+     * Checks if the directory contains any .NET solution files (*.sln).
+     *
+     * @param dir The directory to check
+     * @return true if any .sln file exists
+     */
+    private boolean hasDotNetSolution(Path dir) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.sln")) {
+            return stream.iterator().hasNext();
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if the directory contains any C# project files (*.csproj).
+     *
+     * @param dir The directory to check
+     * @return true if any .csproj file exists
+     */
+    private boolean hasDotNetCSharpProject(Path dir) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.csproj")) {
+            return stream.iterator().hasNext();
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if the directory contains any F# project files (*.fsproj).
+     *
+     * @param dir The directory to check
+     * @return true if any .fsproj file exists
+     */
+    private boolean hasDotNetFSharpProject(Path dir) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.fsproj")) {
+            return stream.iterator().hasNext();
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Finds all .NET solution files (*.sln) in the directory.
+     *
+     * @param dir The directory to search
+     * @return List of .sln file names
+     */
+    private List<String> findDotNetSolutions(Path dir) {
+        List<String> solutions = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.sln")) {
+            for (Path path : stream) {
+                if (Files.isRegularFile(path)) {
+                    solutions.add(path.getFileName().toString());
+                }
+            }
+        } catch (IOException e) {
+            // Ignore and return empty list
+        }
+        return solutions;
+    }
+
+    /**
+     * Finds all C# project files (*.csproj) in the directory.
+     *
+     * @param dir The directory to search
+     * @return List of .csproj file names
+     */
+    private List<String> findDotNetCSharpProjects(Path dir) {
+        List<String> projects = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.csproj")) {
+            for (Path path : stream) {
+                if (Files.isRegularFile(path)) {
+                    projects.add(path.getFileName().toString());
+                }
+            }
+        } catch (IOException e) {
+            // Ignore and return empty list
+        }
+        return projects;
+    }
+
+    /**
+     * Finds all F# project files (*.fsproj) in the directory.
+     *
+     * @param dir The directory to search
+     * @return List of .fsproj file names
+     */
+    private List<String> findDotNetFSharpProjects(Path dir) {
+        List<String> projects = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.fsproj")) {
+            for (Path path : stream) {
+                if (Files.isRegularFile(path)) {
+                    projects.add(path.getFileName().toString());
+                }
+            }
+        } catch (IOException e) {
+            // Ignore and return empty list
+        }
+        return projects;
     }
 }

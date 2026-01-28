@@ -183,4 +183,243 @@ class ProjectDetectorTest {
         assertTrue(result.markersFound().contains("build.gradle.kts"));
         assertEquals(2, result.markersFound().size());
     }
+
+    // Python detection tests
+    @Test
+    void testDetectPythonPyproject() throws Exception {
+        Files.createFile(tempDir.resolve("pyproject.toml"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.PYTHON_PYPROJECT));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("pyproject.toml"));
+    }
+
+    @Test
+    void testDetectPythonRequirements() throws Exception {
+        Files.createFile(tempDir.resolve("requirements.txt"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.PYTHON_REQUIREMENTS));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("requirements.txt"));
+    }
+
+    @Test
+    void testDetectPythonPipenv() throws Exception {
+        Files.createFile(tempDir.resolve("Pipfile"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.PYTHON_PIPENV));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("Pipfile"));
+    }
+
+    @Test
+    void testDetectPythonSetupPy() throws Exception {
+        Files.createFile(tempDir.resolve("setup.py"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.PYTHON_SETUPPY));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("setup.py"));
+    }
+
+    @Test
+    void testDetectPythonMultipleMarkers() throws Exception {
+        Files.createFile(tempDir.resolve("pyproject.toml"));
+        Files.createFile(tempDir.resolve("requirements.txt"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.PYTHON_PYPROJECT));
+        assertTrue(result.types().contains(ProjectType.PYTHON_REQUIREMENTS));
+        assertEquals(2, result.types().size());
+        assertTrue(result.markersFound().contains("pyproject.toml"));
+        assertTrue(result.markersFound().contains("requirements.txt"));
+    }
+
+    // Go detection tests
+    @Test
+    void testDetectGoModules() throws Exception {
+        Files.createFile(tempDir.resolve("go.mod"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.GO_MODULES));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("go.mod"));
+    }
+
+    // Rust detection tests
+    @Test
+    void testDetectRustCargo() throws Exception {
+        Files.createFile(tempDir.resolve("Cargo.toml"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.RUST_CARGO));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("Cargo.toml"));
+    }
+
+    // .NET detection tests
+    @Test
+    void testDetectDotNetSolution() throws Exception {
+        Files.createFile(tempDir.resolve("MyProject.sln"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.DOTNET_SOLUTION));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("MyProject.sln"));
+    }
+
+    @Test
+    void testDetectDotNetCSharpProject() throws Exception {
+        Files.createFile(tempDir.resolve("MyProject.csproj"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.DOTNET_CSHARP_PROJECT));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("MyProject.csproj"));
+    }
+
+    @Test
+    void testDetectDotNetFSharpProject() throws Exception {
+        Files.createFile(tempDir.resolve("MyProject.fsproj"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.DOTNET_FSHARP_PROJECT));
+        assertEquals(1, result.types().size());
+        assertTrue(result.markersFound().contains("MyProject.fsproj"));
+    }
+
+    @Test
+    void testDetectDotNetMultipleProjects() throws Exception {
+        Files.createFile(tempDir.resolve("Project1.csproj"));
+        Files.createFile(tempDir.resolve("Project2.csproj"));
+        Files.createFile(tempDir.resolve("Solution.sln"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.DOTNET_SOLUTION));
+        assertTrue(result.types().contains(ProjectType.DOTNET_CSHARP_PROJECT));
+        assertEquals(2, result.types().size());
+        assertTrue(result.markersFound().contains("Project1.csproj"));
+        assertTrue(result.markersFound().contains("Project2.csproj"));
+        assertTrue(result.markersFound().contains("Solution.sln"));
+    }
+
+    // Multi-type detection tests
+    @Test
+    void testDetectPythonAndDockerCompose() throws Exception {
+        Files.createFile(tempDir.resolve("pyproject.toml"));
+        Files.createFile(tempDir.resolve("docker-compose.yml"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.PYTHON_PYPROJECT));
+        assertTrue(result.types().contains(ProjectType.DOCKER_COMPOSE));
+        assertEquals(2, result.types().size());
+        assertTrue(result.markersFound().contains("pyproject.toml"));
+        assertTrue(result.markersFound().contains("docker-compose.yml"));
+    }
+
+    @Test
+    void testDetectGoAndRust() throws Exception {
+        Files.createFile(tempDir.resolve("go.mod"));
+        Files.createFile(tempDir.resolve("Cargo.toml"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.GO_MODULES));
+        assertTrue(result.types().contains(ProjectType.RUST_CARGO));
+        assertEquals(2, result.types().size());
+    }
+
+    @Test
+    void testDetectPythonAndNode() throws Exception {
+        Files.createFile(tempDir.resolve("requirements.txt"));
+        Files.createFile(tempDir.resolve("package.json"));
+
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(tempDir);
+
+        assertTrue(result.types().contains(ProjectType.PYTHON_REQUIREMENTS));
+        assertTrue(result.types().contains(ProjectType.NODE));
+        assertEquals(2, result.types().size());
+    }
+
+    // Walk-up root detection tests with new markers
+    @Test
+    void testFindRootWithPythonMarkerInParent() throws Exception {
+        Path parent = tempDir.resolve("parent");
+        Path child = parent.resolve("child");
+        Files.createDirectories(child);
+        Files.createFile(parent.resolve("pyproject.toml"));
+
+        ProjectDetector detector = new ProjectDetector();
+        Path root = detector.findProjectRoot(child);
+
+        assertEquals(parent, root);
+    }
+
+    @Test
+    void testFindRootWithGoMarkerInParent() throws Exception {
+        Path parent = tempDir.resolve("parent");
+        Path child = parent.resolve("child");
+        Files.createDirectories(child);
+        Files.createFile(parent.resolve("go.mod"));
+
+        ProjectDetector detector = new ProjectDetector();
+        Path root = detector.findProjectRoot(child);
+
+        assertEquals(parent, root);
+    }
+
+    @Test
+    void testFindRootWithRustMarkerInParent() throws Exception {
+        Path parent = tempDir.resolve("parent");
+        Path child = parent.resolve("child");
+        Files.createDirectories(child);
+        Files.createFile(parent.resolve("Cargo.toml"));
+
+        ProjectDetector detector = new ProjectDetector();
+        Path root = detector.findProjectRoot(child);
+
+        assertEquals(parent, root);
+    }
+
+    @Test
+    void testFindRootWithDotNetMarkerInParent() throws Exception {
+        Path parent = tempDir.resolve("parent");
+        Path child = parent.resolve("child");
+        Files.createDirectories(child);
+        Files.createFile(parent.resolve("MyProject.sln"));
+
+        ProjectDetector detector = new ProjectDetector();
+        Path root = detector.findProjectRoot(child);
+
+        assertEquals(parent, root);
+    }
 }
