@@ -21,7 +21,6 @@ import com.falniak.devdoctor.config.DevDoctorConfig;
 import com.falniak.devdoctor.detect.DetectionResult;
 import com.falniak.devdoctor.detect.ProjectDetector;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
@@ -77,84 +76,98 @@ public class CheckCommand implements java.util.concurrent.Callable<Integer> {
 
     @Override
     public Integer call() {
-        Path targetPath = Paths.get(path).toAbsolutePath().normalize();
-        
-        // Detect project
-        ProjectDetector detector = new ProjectDetector();
-        DetectionResult detectionResult = detector.detect(targetPath);
-        
-        // Load config
-        ConfigLoader configLoader = new ConfigLoader();
-        Optional<DevDoctorConfig> config;
-        Path loadedConfigPath = null;
-        
         try {
-            if (configPath != null) {
-                // Explicit config path provided
-                Path explicitPath = Paths.get(configPath).toAbsolutePath().normalize();
-                DevDoctorConfig loadedConfig = configLoader.loadFromExplicitPath(explicitPath);
-                config = Optional.of(loadedConfig);
-                loadedConfigPath = explicitPath;
-            } else {
-                // Try to load from project root
-                config = configLoader.loadFromProjectRoot(detectionResult.root());
-                if (config.isPresent()) {
-                    loadedConfigPath = configLoader.defaultConfigPath(detectionResult.root());
+            Path targetPath = Paths.get(path).toAbsolutePath().normalize();
+            
+            // Detect project
+            ProjectDetector detector = new ProjectDetector();
+            DetectionResult detectionResult = detector.detect(targetPath);
+            
+            // Load config
+            ConfigLoader configLoader = new ConfigLoader();
+            Optional<DevDoctorConfig> config;
+            Path loadedConfigPath = null;
+            
+            try {
+                if (configPath != null) {
+                    // Explicit config path provided
+                    Path explicitPath = Paths.get(configPath).toAbsolutePath().normalize();
+                    DevDoctorConfig loadedConfig = configLoader.loadFromExplicitPath(explicitPath);
+                    config = Optional.of(loadedConfig);
+                    loadedConfigPath = explicitPath;
+                } else {
+                    // Try to load from project root
+                    config = configLoader.loadFromProjectRoot(detectionResult.root());
+                    if (config.isPresent()) {
+                        loadedConfigPath = configLoader.defaultConfigPath(detectionResult.root());
+                    }
                 }
+            } catch (ConfigException e) {
+                System.err.println("Error loading config: " + e.getMessage());
+                return 2;
             }
-        } catch (ConfigException e) {
-            System.err.println("Error loading config: " + e.getMessage());
-            return ExitCode.USAGE;
+            
+            // Print config status
+            if (loadedConfigPath != null) {
+                System.out.println("Config: loaded from " + loadedConfigPath);
+            } else {
+                System.out.println("Config: none");
+            }
+            
+            // Build context
+            ProcessExecutor executor = new DefaultProcessExecutor();
+            CheckContext context = new CheckContext(
+                targetPath,
+                detectionResult.root(),
+                detectionResult.types(),
+                detectionResult,
+                executor
+            );
+            
+            // Build check list based on flags
+            List<Check> checks = buildCheckList();
+            
+            // Apply ignoreChecks filtering
+            if (config.isPresent() && !config.get().ignoreChecks().isEmpty()) {
+                Set<String> ignoreSet = config.get().ignoreChecks();
+                checks = checks.stream()
+                    .filter(check -> !ignoreSet.contains(check.id()))
+                    .collect(Collectors.toList());
+            }
+            
+            // Run checks
+            CheckRunner runner = new CheckRunner();
+            List<CheckResult> results = runner.runChecks(checks, context);
+            
+            // Determine failed required checks
+            Set<String> failedRequiredChecks = Set.of();
+            if (config.isPresent() && !config.get().requireChecks().isEmpty()) {
+                Set<String> requireSet = config.get().requireChecks();
+                failedRequiredChecks = results.stream()
+                    .filter(result -> requireSet.contains(result.id()))
+                    .filter(result -> result.status() == CheckStatus.FAIL)
+                    .map(CheckResult::id)
+                    .collect(Collectors.toSet());
+            }
+            
+            // Print output
+            ConsoleRenderer renderer = new ConsoleRenderer(showNa, verbose);
+            renderer.render(detectionResult, results, failedRequiredChecks);
+            
+            // Calculate exit code
+            boolean hasFailures = results.stream()
+                .anyMatch(r -> r.status() == CheckStatus.FAIL);
+            boolean hasFailedRequired = !failedRequiredChecks.isEmpty();
+            
+            if (hasFailures || hasFailedRequired) {
+                return 1;
+            }
+            return 0;
+        } catch (Exception e) {
+            // Unexpected exception during execution
+            System.err.println("Unexpected error: " + e.getMessage());
+            return 2;
         }
-        
-        // Print config status
-        if (loadedConfigPath != null) {
-            System.out.println("Config: loaded from " + loadedConfigPath);
-        } else {
-            System.out.println("Config: none");
-        }
-        
-        // Build context
-        ProcessExecutor executor = new DefaultProcessExecutor();
-        CheckContext context = new CheckContext(
-            targetPath,
-            detectionResult.root(),
-            detectionResult.types(),
-            detectionResult,
-            executor
-        );
-        
-        // Build check list based on flags
-        List<Check> checks = buildCheckList();
-        
-        // Apply ignoreChecks filtering
-        if (config.isPresent() && !config.get().ignoreChecks().isEmpty()) {
-            Set<String> ignoreSet = config.get().ignoreChecks();
-            checks = checks.stream()
-                .filter(check -> !ignoreSet.contains(check.id()))
-                .collect(Collectors.toList());
-        }
-        
-        // Run checks
-        CheckRunner runner = new CheckRunner();
-        List<CheckResult> results = runner.runChecks(checks, context);
-        
-        // Determine failed required checks
-        Set<String> failedRequiredChecks = Set.of();
-        if (config.isPresent() && !config.get().requireChecks().isEmpty()) {
-            Set<String> requireSet = config.get().requireChecks();
-            failedRequiredChecks = results.stream()
-                .filter(result -> requireSet.contains(result.id()))
-                .filter(result -> result.status() == CheckStatus.FAIL)
-                .map(CheckResult::id)
-                .collect(Collectors.toSet());
-        }
-        
-        // Print output
-        ConsoleRenderer renderer = new ConsoleRenderer(showNa, verbose);
-        renderer.render(detectionResult, results, failedRequiredChecks);
-        
-        return 0;
     }
     
     private List<Check> buildCheckList() {

@@ -145,22 +145,22 @@ public class ConsoleRenderer {
             counts.put(result.status(), counts.get(result.status()) + 1);
         }
 
-        // Build summary string (exclude NOT_APPLICABLE for cleaner output)
+        // Build summary string
         List<String> parts = new ArrayList<>();
         parts.add("PASS=" + counts.get(CheckStatus.PASS));
         parts.add("WARN=" + counts.get(CheckStatus.WARN));
         parts.add("FAIL=" + counts.get(CheckStatus.FAIL));
         parts.add("INFO=" + counts.get(CheckStatus.INFO));
+        parts.add("NA=" + counts.get(CheckStatus.NOT_APPLICABLE));
 
         String summaryLine = "Summary: " + String.join(" ", parts);
+        System.out.println(summaryLine);
         
-        // Append required checks failure message if applicable
+        // Print required checks failure message on separate line if applicable
         if (!failedRequiredChecks.isEmpty()) {
             String failedIds = String.join(", ", failedRequiredChecks);
-            summaryLine += " Required checks failed: " + failedIds;
+            System.out.println("Required checks failed: " + failedIds);
         }
-        
-        System.out.println(summaryLine);
 
         // Print next steps if any FAIL or WARN exists (but not in verbose mode)
         if (!verbose && (counts.get(CheckStatus.FAIL) > 0 || counts.get(CheckStatus.WARN) > 0)) {

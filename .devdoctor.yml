@@ -1,2 +1,4 @@
-ignore_checks:
+#ignore_checks:
+#  - system.docker
+require_checks:
   - system.docker
