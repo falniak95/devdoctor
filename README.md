@@ -17,16 +17,37 @@ DevDoctor automatically detects your project type (Java, Node.js, Docker, etc.) 
 - **📊 JSON Output**: Machine-readable output for automation and CI/CD integration
 - **⚙️ Configurable**: Customize checks via `.devdoctor.yml` config file
 
-## Quickstart
+## Installation
 
-### Download
+### Quick Install
 
-Download the latest release JAR from [GitHub Releases](https://github.com/falniak95/devdoctor/releases):
+**macOS and Linux:**
+```bash
+curl -fsSL https://falniak95.github.io/devdoctor/install.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://falniak95.github.io/devdoctor/install.ps1 | iex
+```
+
+The installer will:
+- Download the latest `devdoctor.jar` from GitHub Releases
+- Install it to `~/.devdoctor/` (macOS/Linux) or `%LOCALAPPDATA%\DevDoctor\` (Windows)
+- Create an executable wrapper in your PATH
+- Provide instructions if PATH configuration is needed
+
+### Manual Installation
+
+Download the latest release JAR from [GitHub Releases](https://github.com/falniak95/devdoctor/releases) and run:
 
 ```bash
-# Verify installation
 java -jar devdoctor.jar --version
 ```
+
+For more installation options and troubleshooting, see the [Installation Guide](https://falniak95.github.io/devdoctor/install/).
+
+## Quickstart
 
 ### Examples
 
