@@ -1,7 +1,7 @@
 # DevDoctor
 
 <div align="center">
-  <img src="../assets/mascot.png" width="180" alt="DevDoctor Mascot">
+  <img src="assets/mascot.png" width="180" alt="DevDoctor Mascot">
 </div>
 
 **Project-aware CLI tool that diagnoses environment and setup issues before they become problems.**
