@@ -1,5 +1,8 @@
 package com.falniak.devdoctor.commands;
 
+import com.falniak.devdoctor.detect.DetectionResult;
+import com.falniak.devdoctor.detect.ProjectDetector;
+import com.falniak.devdoctor.detect.ProjectType;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -22,7 +25,18 @@ public class DetectCommand implements Runnable {
     @Override
     public void run() {
         Path targetPath = Paths.get(path).toAbsolutePath().normalize();
-        System.out.println("Target path: " + targetPath);
-        System.out.println("Not implemented yet");
+        ProjectDetector detector = new ProjectDetector();
+        DetectionResult result = detector.detect(targetPath);
+
+        System.out.println("Project root: " + result.root());
+        System.out.println("Detected types:");
+        
+        if (result.types().isEmpty()) {
+            System.out.println("  None");
+        } else {
+            for (ProjectType type : result.types()) {
+                System.out.println("  " + type);
+            }
+        }
     }
 }
