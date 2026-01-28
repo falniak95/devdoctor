@@ -24,6 +24,14 @@ jobs:
 
       - run: mkdocs build
 
+      # Copy install scripts to site directory so they're available on GitHub Pages
+      - run: |
+          mkdir -p site/install
+          cp install/install.sh site/install/install.sh
+          cp install/install.ps1 site/install/install.ps1
+          cp install/README.md site/install/README.md
+          chmod +x site/install/install.sh
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
