@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Renders check results to the console with formatting and filtering options.
@@ -28,8 +29,9 @@ public class ConsoleRenderer {
      *
      * @param detectionResult The project detection result
      * @param results The list of check results to render
+     * @param failedRequiredChecks Set of required check IDs that failed
      */
-    public void render(DetectionResult detectionResult, List<CheckResult> results) {
+    public void render(DetectionResult detectionResult, List<CheckResult> results, Set<String> failedRequiredChecks) {
         // Print header
         System.out.println("Project root: " + detectionResult.root());
         System.out.println("Detected project types:");
@@ -74,7 +76,18 @@ public class ConsoleRenderer {
         }
 
         // Print summary
-        printSummary(results);
+        printSummary(results, failedRequiredChecks);
+    }
+    
+    /**
+     * Renders the detection result and check results to the console.
+     * Convenience method for backward compatibility.
+     *
+     * @param detectionResult The project detection result
+     * @param results The list of check results to render
+     */
+    public void render(DetectionResult detectionResult, List<CheckResult> results) {
+        render(detectionResult, results, Set.of());
     }
 
     private boolean hasVisibleChecks(List<CheckResult> checks) {
@@ -119,7 +132,7 @@ public class ConsoleRenderer {
         }
     }
 
-    private void printSummary(List<CheckResult> results) {
+    private void printSummary(List<CheckResult> results, Set<String> failedRequiredChecks) {
         Map<CheckStatus, Integer> counts = new HashMap<>();
         
         // Initialize all statuses to 0
@@ -132,15 +145,22 @@ public class ConsoleRenderer {
             counts.put(result.status(), counts.get(result.status()) + 1);
         }
 
-        // Build summary string
+        // Build summary string (exclude NOT_APPLICABLE for cleaner output)
         List<String> parts = new ArrayList<>();
         parts.add("PASS=" + counts.get(CheckStatus.PASS));
         parts.add("WARN=" + counts.get(CheckStatus.WARN));
         parts.add("FAIL=" + counts.get(CheckStatus.FAIL));
         parts.add("INFO=" + counts.get(CheckStatus.INFO));
-        parts.add("NA=" + counts.get(CheckStatus.NOT_APPLICABLE));
 
-        System.out.println("Summary: " + String.join(" ", parts));
+        String summaryLine = "Summary: " + String.join(" ", parts);
+        
+        // Append required checks failure message if applicable
+        if (!failedRequiredChecks.isEmpty()) {
+            String failedIds = String.join(", ", failedRequiredChecks);
+            summaryLine += " Required checks failed: " + failedIds;
+        }
+        
+        System.out.println(summaryLine);
 
         // Print next steps if any FAIL or WARN exists (but not in verbose mode)
         if (!verbose && (counts.get(CheckStatus.FAIL) > 0 || counts.get(CheckStatus.WARN) > 0)) {
