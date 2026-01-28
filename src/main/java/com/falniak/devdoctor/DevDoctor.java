@@ -2,13 +2,14 @@ package com.falniak.devdoctor;
 
 import com.falniak.devdoctor.commands.CheckCommand;
 import com.falniak.devdoctor.commands.DetectCommand;
+import com.falniak.devdoctor.commands.FixCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
 @Command(
     name = "devdoctor",
     description = "Project-aware CLI tool that helps developers diagnose environment and setup issues",
-    subcommands = {DetectCommand.class, CheckCommand.class},
+    subcommands = {DetectCommand.class, CheckCommand.class, FixCommand.class},
     mixinStandardHelpOptions = true
 )
 public class DevDoctor implements Runnable {
