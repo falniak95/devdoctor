@@ -125,7 +125,7 @@ public class FixCommand implements java.util.concurrent.Callable<Integer> {
             
             // Apply fixes if requested
             if (apply) {
-                return applyFixes(plan, executor);
+                return applyFixes(plan, executor, detectionResult.root());
             }
             
             return 0;
@@ -163,34 +163,72 @@ public class FixCommand implements java.util.concurrent.Callable<Integer> {
             return;
         }
         
+        // Count actions by risk
+        long safeCount = plan.actions().stream()
+            .filter(action -> action.risk() == Risk.SAFE)
+            .count();
+        long cautionCount = plan.actions().stream()
+            .filter(action -> action.risk() == Risk.CAUTION)
+            .count();
+        
         System.out.println("Fix Plan:");
         System.out.println("=========");
+        System.out.println();
+        System.out.println("Fix plan summary: SAFE=" + safeCount + " CAUTION=" + cautionCount);
+        System.out.println();
         
-        for (FixAction action : plan.actions()) {
-            System.out.println();
-            System.out.println("[" + action.risk() + "] " + action.title());
-            System.out.println("  ID: " + action.id());
-            System.out.println("  Description: " + action.description());
-            
-            if (!action.commands().isEmpty()) {
-                System.out.println("  Commands:");
-                for (String command : action.commands()) {
-                    System.out.println("    - " + command);
-                }
+        // Separate system and project fixes
+        List<FixAction> systemActions = plan.actions().stream()
+            .filter(action -> action.id().startsWith("system."))
+            .collect(Collectors.toList());
+        List<FixAction> projectActions = plan.actions().stream()
+            .filter(action -> !action.id().startsWith("system."))
+            .collect(Collectors.toList());
+        
+        // Display system fixes
+        if (!systemActions.isEmpty()) {
+            System.out.println("System fixes:");
+            System.out.println("------------");
+            for (FixAction action : systemActions) {
+                displayAction(action);
             }
-            
-            // Display status based on risk level
-            if (action.risk() == Risk.CAUTION) {
-                System.out.println("  Status: Suggestion only (not applied by DevDoctor)");
-            } else if (action.applyable()) {
-                System.out.println("  Status: Can be applied automatically");
-            } else {
-                System.out.println("  Status: Manual action required");
+            System.out.println();
+        }
+        
+        // Display project fixes
+        if (!projectActions.isEmpty()) {
+            System.out.println("Project fixes:");
+            System.out.println("-------------");
+            for (FixAction action : projectActions) {
+                displayAction(action);
             }
         }
     }
     
-    private int applyFixes(FixPlan plan, ProcessExecutor executor) {
+    private void displayAction(FixAction action) {
+        System.out.println();
+        System.out.println("[" + action.risk() + "] " + action.title());
+        System.out.println("  ID: " + action.id());
+        System.out.println("  Description: " + action.description());
+        
+        if (!action.commands().isEmpty()) {
+            System.out.println("  Commands:");
+            for (String command : action.commands()) {
+                System.out.println("    - " + command);
+            }
+        }
+        
+        // Display status based on risk level
+        if (action.risk() == Risk.CAUTION) {
+            System.out.println("  Status: Suggestion only (not applied by DevDoctor)");
+        } else if (action.applyable()) {
+            System.out.println("  Status: Can be applied automatically");
+        } else {
+            System.out.println("  Status: Manual action required");
+        }
+    }
+    
+    private int applyFixes(FixPlan plan, ProcessExecutor executor, Path projectRoot) {
         // Filter to only SAFE and applyable actions
         List<FixAction> safeActions = plan.actions().stream()
             .filter(action -> action.risk() == Risk.SAFE && action.applyable())
@@ -216,6 +254,9 @@ public class FixCommand implements java.util.concurrent.Callable<Integer> {
         System.out.println("Applying fixes:");
         System.out.println("==============");
         
+        // Create executor with project root as working directory
+        ProcessExecutor projectExecutor = new DefaultProcessExecutor(projectRoot);
+        
         int applied = 0;
         int skipped = 0;
         
@@ -225,7 +266,7 @@ public class FixCommand implements java.util.concurrent.Callable<Integer> {
                 boolean allSucceeded = true;
                 for (String command : action.commands()) {
                     List<String> commandParts = parseCommand(command);
-                    ExecResult result = executor.exec(commandParts);
+                    ExecResult result = projectExecutor.exec(commandParts);
                     if (result.exitCode() != 0) {
                         System.err.println("  Command failed: " + command);
                         System.err.println("  Error: " + result.stderr());

@@ -2,6 +2,7 @@ package com.falniak.devdoctor.check;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -11,11 +12,31 @@ import java.util.concurrent.TimeUnit;
 public class DefaultProcessExecutor implements ProcessExecutor {
 
     private static final int TIMEOUT_SECONDS = 5;
+    private final Path workingDirectory;
+
+    /**
+     * Creates a DefaultProcessExecutor with no specific working directory.
+     */
+    public DefaultProcessExecutor() {
+        this.workingDirectory = null;
+    }
+
+    /**
+     * Creates a DefaultProcessExecutor with a specific working directory.
+     *
+     * @param workingDirectory The working directory for executed commands
+     */
+    public DefaultProcessExecutor(Path workingDirectory) {
+        this.workingDirectory = workingDirectory;
+    }
 
     @Override
     public ExecResult exec(List<String> command) throws Exception {
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         processBuilder.redirectErrorStream(false);
+        if (workingDirectory != null) {
+            processBuilder.directory(workingDirectory.toFile());
+        }
 
         Process process = processBuilder.start();
 

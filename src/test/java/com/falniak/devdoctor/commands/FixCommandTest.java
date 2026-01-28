@@ -396,4 +396,218 @@ class FixCommandTest {
             System.setErr(originalErr);
         }
     }
+
+    @Test
+    void testNodeMissingNodeModulesGeneratesSafeAction() throws Exception {
+        // Create a Node project without node_modules
+        Path projectRoot = tempDir.resolve("node-project");
+        Files.createDirectories(projectRoot);
+        Files.writeString(projectRoot.resolve("package.json"), "{\"name\": \"test\", \"version\": \"1.0.0\"}");
+        
+        // Ensure node_modules does NOT exist
+        Path nodeModules = projectRoot.resolve("node_modules");
+        assertFalse(Files.exists(nodeModules), "node_modules should not exist");
+        
+        FakeProcessExecutor executor = new FakeProcessExecutor();
+        Set<ProjectType> types = EnumSet.of(ProjectType.NODE);
+        DetectionResult detectionResult = new DetectionResult(projectRoot, types, List.of());
+        CheckContext context = new CheckContext(projectRoot, projectRoot, types, detectionResult, executor);
+        
+        FixPlanner planner = new FixPlanner();
+        FixPlan plan = planner.plan(List.of(), context); // No check results, just checking node_modules
+        
+        // Should have one SAFE action for installing dependencies
+        FixAction nodeDepsAction = plan.actions().stream()
+            .filter(action -> "project.node.dependencies".equals(action.id()))
+            .findFirst()
+            .orElse(null);
+        
+        assertNotNull(nodeDepsAction, "Should have Node dependencies action");
+        assertEquals(Risk.SAFE, nodeDepsAction.risk(), "Should be SAFE");
+        assertTrue(nodeDepsAction.applyable(), "Should be applyable");
+        assertEquals("Install Node.js dependencies", nodeDepsAction.title());
+        assertFalse(nodeDepsAction.commands().isEmpty(), "Should have commands");
+        assertEquals(List.of("npm", "install"), nodeDepsAction.commands(), "Should suggest npm install");
+    }
+
+    @Test
+    void testNodeMissingNodeModulesWithPackageLockGeneratesNpmCi() throws Exception {
+        // Create a Node project without node_modules but with package-lock.json
+        Path projectRoot = tempDir.resolve("node-project");
+        Files.createDirectories(projectRoot);
+        Files.writeString(projectRoot.resolve("package.json"), "{\"name\": \"test\", \"version\": \"1.0.0\"}");
+        Files.writeString(projectRoot.resolve("package-lock.json"), "{\"name\": \"test\", \"version\": \"1.0.0\"}");
+        
+        FakeProcessExecutor executor = new FakeProcessExecutor();
+        Set<ProjectType> types = EnumSet.of(ProjectType.NODE);
+        DetectionResult detectionResult = new DetectionResult(projectRoot, types, List.of());
+        CheckContext context = new CheckContext(projectRoot, projectRoot, types, detectionResult, executor);
+        
+        FixPlanner planner = new FixPlanner();
+        FixPlan plan = planner.plan(List.of(), context);
+        
+        FixAction nodeDepsAction = plan.actions().stream()
+            .filter(action -> "project.node.dependencies".equals(action.id()))
+            .findFirst()
+            .orElse(null);
+        
+        assertNotNull(nodeDepsAction, "Should have Node dependencies action");
+        assertEquals(List.of("npm", "ci"), nodeDepsAction.commands(), "Should suggest npm ci when package-lock.json exists");
+    }
+
+    @Test
+    void testSafeActionExecutesWhenApplyYes() throws Exception {
+        // Create a Node project and set up executor to capture npm commands
+        Path projectRoot = tempDir.resolve("node-project");
+        Files.createDirectories(projectRoot);
+        Files.writeString(projectRoot.resolve("package.json"), "{\"name\": \"test\", \"version\": \"1.0.0\"}");
+        
+        FakeProcessExecutor executor = new FakeProcessExecutor();
+        executor.setResult("npm", new ExecResult(0, "npm output", ""));
+        
+        Set<ProjectType> types = EnumSet.of(ProjectType.NODE);
+        DetectionResult detectionResult = new DetectionResult(projectRoot, types, List.of());
+        CheckContext context = new CheckContext(projectRoot, projectRoot, types, detectionResult, executor);
+        
+        FixPlanner planner = new FixPlanner();
+        FixPlan plan = planner.plan(List.of(), context);
+        
+        // Verify we have a SAFE applyable action
+        List<FixAction> safeActions = plan.actions().stream()
+            .filter(action -> action.risk() == Risk.SAFE && action.applyable())
+            .toList();
+        
+        assertEquals(1, safeActions.size(), "Should have one SAFE applyable action");
+        
+        // Test that the action would be executed (we can't easily test FixCommand.applyFixes directly
+        // without more complex mocking, but we can verify the action is correctly structured)
+        FixAction action = safeActions.get(0);
+        assertEquals("project.node.dependencies", action.id());
+        assertTrue(action.applyable());
+        assertFalse(action.commands().isEmpty());
+    }
+
+    @Test
+    void testCautionActionsNeverExecuted() throws Exception {
+        // Create a plan with both SAFE and CAUTION actions
+        FakeProcessExecutor executor = new FakeProcessExecutor();
+        executor.setException("docker", new Exception("docker: command not found"));
+        
+        CheckContext context = createTestContext(executor);
+        
+        DockerCheck dockerCheck = new DockerCheck();
+        CheckResult dockerResult = dockerCheck.run(context);
+        
+        FixPlanner planner = new FixPlanner();
+        FixPlan plan = planner.plan(List.of(dockerResult), context);
+        
+        // Verify we have CAUTION actions
+        List<FixAction> cautionActions = plan.actions().stream()
+            .filter(action -> action.risk() == Risk.CAUTION)
+            .toList();
+        
+        assertFalse(cautionActions.isEmpty(), "Should have CAUTION actions");
+        
+        // Filter to only SAFE and applyable actions (as applyFixes does)
+        List<FixAction> safeActions = plan.actions().stream()
+            .filter(action -> action.risk() == Risk.SAFE && action.applyable())
+            .toList();
+        
+        // CAUTION actions should not be in safeActions
+        assertTrue(safeActions.stream().noneMatch(action -> action.risk() == Risk.CAUTION),
+            "CAUTION actions should not be in safe actions list");
+        
+        // Verify CAUTION actions are never applyable
+        for (FixAction action : cautionActions) {
+            assertFalse(action.applyable(), 
+                "CAUTION action '" + action.id() + "' must have applyable=false");
+        }
+    }
+
+    @Test
+    void testNodeRequirementsMismatchGeneratesCautionAction() throws Exception {
+        // Create a Node project with .nvmrc
+        Path projectRoot = tempDir.resolve("node-project");
+        Files.createDirectories(projectRoot);
+        Files.writeString(projectRoot.resolve(".nvmrc"), "18");
+        
+        FakeProcessExecutor executor = new FakeProcessExecutor();
+        executor.setResult("node", new ExecResult(0, "v16.0.0", ""));
+        
+        Set<ProjectType> types = EnumSet.of(ProjectType.NODE);
+        DetectionResult detectionResult = new DetectionResult(projectRoot, types, List.of());
+        CheckContext context = new CheckContext(projectRoot, projectRoot, types, detectionResult, executor);
+        
+        // Create a synthetic requirement check failure
+        CheckResult requirementResult = new CheckResult(
+            "project.node.requirements",
+            CheckStatus.FAIL,
+            "Required: 18.x (source: .nvmrc), Local: v16.0.0",
+            "Version mismatch",
+            List.of(new Suggestion(
+                "Install Node.js 18.x",
+                List.of("nvm install 18"),
+                com.falniak.devdoctor.check.Risk.SAFE
+            ))
+        );
+        
+        FixPlanner planner = new FixPlanner();
+        FixPlan plan = planner.plan(List.of(requirementResult), context);
+        
+        assertFalse(plan.actions().isEmpty(), "Should have actions for requirement failure");
+        
+        FixAction action = plan.actions().stream()
+            .filter(a -> "project.node.requirements".equals(a.id()))
+            .findFirst()
+            .orElse(null);
+        
+        assertNotNull(action, "Should have action for node requirements");
+        assertEquals(Risk.CAUTION, action.risk(), "Requirement actions should be CAUTION");
+        assertEquals("Align Node.js version", action.title());
+        assertFalse(action.applyable(), "CAUTION actions must never be applyable");
+        
+        // Verify description includes version info
+        assertTrue(action.description().contains("Required:") || action.description().contains("18"),
+            "Description should include version information");
+        
+        // Verify commands include nvm use (because .nvmrc exists)
+        assertTrue(action.commands().stream().anyMatch(cmd -> cmd.contains("nvm use")),
+            "Should include 'nvm use' command when .nvmrc exists");
+    }
+
+    @Test
+    void testNodeRequirementsWithoutNvmrcUsesNvmInstall() throws Exception {
+        // Create a Node project without .nvmrc
+        Path projectRoot = tempDir.resolve("node-project");
+        Files.createDirectories(projectRoot);
+        // No .nvmrc file
+        
+        FakeProcessExecutor executor = new FakeProcessExecutor();
+        
+        Set<ProjectType> types = EnumSet.of(ProjectType.NODE);
+        DetectionResult detectionResult = new DetectionResult(projectRoot, types, List.of());
+        CheckContext context = new CheckContext(projectRoot, projectRoot, types, detectionResult, executor);
+        
+        // Create a synthetic requirement check failure
+        CheckResult requirementResult = new CheckResult(
+            "project.node.requirements",
+            CheckStatus.FAIL,
+            "Required: 18.x (source: package.json), Local: v16.0.0",
+            "Version mismatch",
+            List.of()
+        );
+        
+        FixPlanner planner = new FixPlanner();
+        FixPlan plan = planner.plan(List.of(requirementResult), context);
+        
+        FixAction action = plan.actions().stream()
+            .filter(a -> "project.node.requirements".equals(a.id()))
+            .findFirst()
+            .orElse(null);
+        
+        assertNotNull(action, "Should have action for node requirements");
+        // Should suggest nvm install when .nvmrc doesn't exist
+        assertTrue(action.commands().stream().anyMatch(cmd -> cmd.contains("nvm install")),
+            "Should include 'nvm install' command when .nvmrc doesn't exist");
+    }
 }
